@@ -1,0 +1,545 @@
+---
+title: "Roteiro - Minicurso de Mapas em R"
+date: "`r Sys.Date()`"
+author: "Matheus C. Pestana"
+output:
+  rmdformats::downcute:
+    self_contained: true
+---
+
+
+```{r setup, include=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="90")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=FALSE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+
+# Pacotes essenciais
+
+Nesse minicurso, utilizaremos os seguintes pacotes:
+
+```{r pacotes, include=TRUE}
+pacman::p_load(
+  sf,
+  raster,
+  leaflet,
+  geobr,
+  brmap,
+  tidyverse,
+  rio,
+  plotly,
+  osmdata,
+  leaflet.extras,
+  rayshader,
+  gifski,
+  spData
+)
+```
+
+
+# Tipos de dados em mapas
+
+## Vetor
+
+- Usa pontos, linhas (*linestrings*) e polígonos
+- Pode ser tratado como um *dataframe*
+- É rápido, flexível e difundido nas ciências humanas
+- É basicamente um "desenho", registrado em um eixo de coordenadas
+
+Vetores são localizáveis facilmente dentro de um par de valores. O Rio de Janeiro, por exemplo, 
+é um ponto em `(-43.12, -22.54)`, ou seja, ele se localiza a -43.12 e -22.54 em um eixo cartesiano, a partir da origem. Em graus, como vemos em GPS, significa 43º12'W, 22º54'S. 
+
+```{r rj, echo=FALSE}
+world %>%
+  ggplot() +
+  geom_sf() +
+  geom_point(aes(x = -43.12, y = -22.54),
+             size = 3,
+             color = "red") +
+  geom_point(aes(x = 0, 
+                 y = 0),
+             size = 1,
+             color = "black") +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0) +
+  geom_text(aes(x = -20, 
+                y = -25, 
+                label = "Rio de Janeiro"),
+            size = 2.5) +
+  labs(title = "Rio de Janeiro - 43º12'W  22º54'S",
+       caption = "Matheus C. Pestana") +
+  hrbrthemes::theme_ipsum_tw()
+```
+
+
+## Raster
+
+- É uma simples imagem de fundo com dados agregados à ela 
+- É um formato mais antigo e consistente
+- É interessante por utilizar imagens oriundas de sistemas de sensoriamento remoto (como satélites, fotos de drone, etc)  
+
+```{r, eval=TRUE, echo=FALSE}
+raster <-  raster("../Raster/MDE_26844no_v2.tif")
+plot(raster)
+```
+
+
+## Quando usar cada um? 
+
+Depende de como seus dados estão disponibilizados, depende do seu objetivo final, depende do que você está analisando... 
+
+Saber lidar com as duas categorias é importante pois abre novas possibilidades de pesquisa. 
+
+De qualquer maneira, esses formatos são cambiáveis entre si, ou seja, __é possível converter de um para o outro__.
+
+> O nosso foco principal nesse minicurso serão os mapas com dados em vetores. Além de serem mais
+fáceis de serem manipulados, são mais adequados às necessidades gerais nas Ciências Humanas e Sociais. 
+
+# Estrutura dos objetos
+
+Vamos inspecionar como é a estrutura de cada um dos objetos criados: um mapa do Brasil e o *raster*. 
+```{r}
+# Mapa dos municípios do RJ
+brmap::brmap_estado
+
+ggplot(brmap::brmap_municipio_simples %>%
+         filter(estado_cod == 33)) +
+  geom_sf() +
+  hrbrthemes::theme_ipsum_tw()
+
+# Raster
+raster
+```
+
+# Simple Features
+
+SimpleFeatures é um padrão de objetos cartográficos que é utilizado no R e em tantos outros *softwares*. Como é um padrão, ele versa sobre __formas de organizar os dados__. O mapa do Rio que vimos acima está no padrão de *SimpleFeatures*, que chamaremos de SF. Esse padrão é usado pelo pacote `sf` no R. 
+
+Se observamos o objeto de mapa que vimos acima, percebemos que ele tem 5 colunas: `estado_cod`, `regiao_cod`, `estado_nome`, `estado_sigla`, e `geometry`. As 4 primeiras variáveis são informações referentes à quinta, que é a geometria. Chamamos de *geometria* por serem dados com informações sobre pontos, linhas e polígonos (no caso acima, polígonos apenas). Todos localizados dentro dos eixos X e Y, ou seja, longitude e latitude. 
+
+Se olharmos dentro da variável `geometry`, teremos uma lista com valores:
+
+```{r}
+brmap_estado %>% 
+  filter(estado_cod == 33) %>% 
+  select(geometry) %>% 
+  unlist() %>% 
+  head(15)
+```
+
+Percebam: eu utilizei uma abordagem `tidy` durante todo o processo. Esse é um dos principais pontos positivos sobre o `sf` : o uso do `tidyverse` diretamente.
+
+# Vetores de mapas do Brasil
+
+É possível baixar arquivos externos bastante acurados para projetarmos no R. Todavia, existe um pacote que já engloba os principais arquivos para regiões, estados e até mesmo municípios, tanto de um ponto de vista mais preciso quanto também vetores simplificados. É o `brmap`. Ele contém 8 objetos (que ficam disponíveis no R quando carregados): 
+
+- `brmap_brasil`
+- `brmap_brasil_simples`
+- `brmap_estado`
+- `brmap_estado_simples`
+- `brmap_municipio`
+- `brmap_municipio_simples`
+- `brmap_regiao`
+- `brmap_regiao_simples`
+
+Cada um com um nível de informação diferente. Podemos ter os vetores de todos os municípios, com suas respectivas regiões administrativas, como também podemos ter apenas o mapa do Brasil, sem fronteiras internas. 
+
+```{r}
+brmap_brasil_simples %>% 
+  ggplot()+
+  geom_sf()
+
+brmap_estado_simples %>% 
+  ggplot()+
+  geom_sf()
+
+brmap_municipio_simples %>% 
+  select(-municipio_nome) %>% 
+  filter(estado_cod == 33) %>% 
+  ggplot()+
+  geom_sf()
+```
+
+# GEOBR
+
+O pacote `geobr` também é interessante para baixarmos dados cartográficos no R. Ele permite baixar dados do IBGE, FUNAI, DataSUS, MMA e INEP. Mais detalhes [aqui](https://github.com/ipeaGIT/geobr#readme).
+
+```{r}
+list_geobr()
+
+# Baixando dados de terras indígenas
+terra_indigena <-  read_indigenous_land(showProgress = F)
+terra_indigena %>% 
+  ggplot() +
+  geom_sf()
+
+```
+
+
+# Ok, mas o que fazemos com tudo isso? 
+
+Mapas são úteis para entendermos sobre realidades e contextos específicos dentro do espaço, em determinado tempo. Como georreferenciar certos dados, então, em um mapa? 
+
+# Pintando/preenchendo mapas
+
+Para pintar ou preencher mapas, a abordagem é __exatamente a mesma__ de qualquer gráfico do `ggplot`. É importante lembrar que com esse pacote, estamos criando mapas estáticos, que devem condensar somente as variáveis interessantes na nossa pesquisa/visualização. 
+
+Por exemplo, vamos, no mapa do Sudeste, pintar de cores diferentes cada estado, ou seja, vamos ser capazes de diferenciar, a partir de variáveis já existentes (`estado_cod`) cada estado.
+
+```{r}
+brmap_municipio_simples %>% 
+  filter(estado_cod %in% c(31, 32, 33, 35)) %>% 
+  ggplot(aes(fill = estado_cod))+
+  geom_sf(color = "white", size = 0.05)
+```
+Ops! Tivemos um problema. Como `estado_cod` é uma variável numérica, o R entendeu que a mesma é contínua, o que não é o caso: são variáveis categóricas, apenas codificadas numericamente por questões de organização. Muitas saídas podem ser aplicadas, e abaixo segue uma delas:
+
+```{r}
+brmap_municipio_simples %>% 
+  filter(estado_cod %in% c(31, 32, 33, 35)) %>% 
+  ggplot(aes(fill = as.factor(estado_cod)))+
+  geom_sf(color = "white", size = 0.1)
+```
+
+Como estamos dentro do ambiente do `ggplot`, podemos trabalhar com os mesmos recursos, buscando uma visualização mais aprazível:
+
+```{r}
+brmap_municipio_simples %>% 
+  filter(estado_cod %in% c(31, 32, 33, 35)) %>% 
+  ggplot(aes(fill = as.factor(estado_cod)))+
+  geom_sf(color = "white", size = 0.05) +
+  hrbrthemes::theme_ipsum_tw() + 
+  scale_fill_manual(values = c("31" = "deeppink", "32" = "forestgreen", "33" = "dodgerblue4", "35" = "darkorange"))+
+  labs(title = "Região Sudeste",
+       subtitle = "Divisão dos municípios",
+       caption = "Matheus c. Pestana",
+       fill = "Código do Estado")
+```
+
+# Outras variáveis
+
+E para adicionar ouras variáveis que não estão no banco que nós já temos?
+
+> R: Tidyverse! 
+
+Supondo que a gente queira, por exemplo, mostrar para alguém as cidades do nosso estado que já visitamos. Como fazer isso?  
+
+```{r}
+brmap_municipio_simples %>% 
+  filter(estado_cod == 33) %>% 
+  mutate(visita = case_when(municipio_nome == "Rio de Janeiro" ~ "Onde moro",
+                            municipio_nome %in% c("Angra dos Reis", "Belford Roxo", "Cabo Frio", "Cachoeiras de Macacu", "Guapimirim", "Itaboraí", "Duque de Caxias", "Magé", "Maricá", "Nilópolis", "Niterói", "Nova Friburgo", "Petrópolis", "Paraty", "Teresópolis", "São Gonçalo") ~ "Já visitei",
+                            TRUE ~ "Nunca visitei")) %>% 
+  ggplot(aes(fill = visita))+
+  geom_sf(color = "white", size = 0.1)+
+  hrbrthemes::theme_ipsum_tw()+
+  theme(legend.position = "bottom")+
+  scale_fill_brewer(palette = "Dark2")+
+  labs(fill = "Legenda")
+```
+
+# Dados Eleitorais
+
+E se quiséssemos implementar dados externos, como por exemplo, dados sobre votação do TSE? 
+
+Para baixar os dados, podemos utilizar o pacote `electionsBR`, do Fernando Meirelles e do Denisson Silva. 
+
+## Segundo turno - Presidência 2018 
+
+Supondo que queiramos os dados das eleições presidenciais de 2018 para saber quem ganhou em cada estado, no segundo turno. 
+
+```{r}
+segundo_turno_br <- import("~/Documents/Datasets/Minicurso_Mapas/votacao_candidato_munzona_2018_BR.csv", encoding = "Latin-1") %>% 
+  filter(NR_TURNO == 2) %>% 
+  group_by(SG_UF, NM_URNA_CANDIDATO) %>% 
+  summarise(votos = sum(QT_VOTOS_NOMINAIS)) %>% 
+  filter(SG_UF != "ZZ") %>% 
+  pivot_wider(names_from = NM_URNA_CANDIDATO, values_from = votos) %>% 
+  janitor::clean_names() %>% 
+  mutate(total_votos = fernando_haddad + jair_bolsonaro,
+         pct_haddad = fernando_haddad / total_votos,
+         pct_bolsonaro = jair_bolsonaro / total_votos,
+         jair_ganhou = ifelse(pct_bolsonaro >= 0.5, "Jair Bolsonaro", "Fernando Haddad"),
+         estado_sigla = sg_uf) %>% 
+  select(-sg_uf)
+
+mapa_2t <- left_join(brmap_estado_simples, segundo_turno_br)
+
+mapa_2t %>% 
+  ggplot(aes(fill = jair_ganhou))+
+  geom_sf(color = "white", size = 0.1)+
+  scale_fill_manual(values = c("Jair Bolsonaro" = "darkorange", "Fernando Haddad" = "firebrick"))+
+  theme_minimal()+
+  theme(legend.position = "bottom")+
+  labs(title = "2º Turno - 2018", 
+       subtitle = "Jair Bolsonaro x Fernando Haddad",
+       fill = "")
+
+```
+# Governadores - 2018
+
+```{r}
+governadores <- import("~/Documents/Datasets/Minicurso_Mapas/governadores.csv")
+
+governadores <- governadores %>% 
+  rename("estado_sigla" = SIGLA_UF)
+
+mapa_governadores <- left_join(brmap_estado_simples, governadores)
+
+mapa_governadores %>% 
+  ggplot(aes(fill = SIGLA_PARTIDO, label = SIGLA_PARTIDO))+
+  geom_sf(show.legend = F)+
+  geom_sf_label(show.legend = F, 
+                size = 2, 
+                fill = "white", 
+                alpha = 0.5)+
+  hrbrthemes::theme_ipsum_tw()
+  
+```
+
+# Dados do Censo
+
+Agora, vamos olhar para dados oriundos do Censo 2010: a porcentagem de população não-branca nos municípios. 
+
+```{r}
+pop_n_branca <- import("~/Documents/Datasets/Minicurso_Mapas/Populacao_Nao_Branca.xlsx")
+
+pop_n_branca_rio <- pop_n_branca %>% 
+  filter(V0001 == 33) %>% 
+  select(mun, pct_n_branca, nome_municipio) %>% 
+  rename("municipio_cod" = mun) %>% 
+  mutate(municipio_cod = as.integer(municipio_cod))
+
+rio <-  left_join(brmap_municipio_simples %>% 
+                    filter(estado_cod == 33), pop_n_branca_rio)
+
+rio %>% 
+  ggplot(aes(fill = pct_n_branca))+
+  geom_sf(color = "white", size = 0.1)+
+  geom_sf_text(aes(label = municipio_nome), size = 1)+
+  viridis::scale_fill_viridis()
+```
+Como temos muitos municípios juntos, fica impossível colocar o nome da cidade em um tamanho possível de ser lido. Como proceder? 
+
+Temos duas opções: o `plotly` e `leaflet`. 
+
+## Plotly
+
+```{r}
+rio %>% 
+  ggplot(aes(fill = pct_n_branca))+
+  geom_sf(color = "white", size = 0.1)+
+  geom_sf_text(aes(label = municipio_nome), size = 2)+
+  viridis::scale_fill_viridis()+
+  theme_minimal() -> mapa_rio_nbranco
+
+ggplotly(mapa_rio_nbranco)
+```
+
+## Leaflet
+
+O `leaflet` é um pacote muito completo que, na verdade, traduz códigos de R em javascript, de onde o `leaflet` é originário, e permite que criemos mapas dinâmicos. Assim, os mapas de leaflets não ficam bons em PDFs (nem podem ser usados neles!), mas sim em sites ou relatórios em HTML, como esse roteiro.
+
+O `leaflet`, assim como o `ggplot`, funciona por camadas e utiliza objetos do tipo `sf`. Logo, podemos refazer todos os mapas que já temos disponíveis nesse processamento! 
+
+```{r}
+pal <- colorBin("YlOrRd", domain = rio$pct_n_branca, bins = seq(0, 1, 0.1), alpha = T)
+
+rio <- rio %>% 
+  mutate(pct = paste(format(pct_n_branca*100, digits = 3), "%"))
+
+labels <- sprintf("<strong>%s</strong><br/> %s de não-brancos",
+                  rio$nome_municipio, rio$pct) %>% 
+  lapply(htmltools::HTML)
+
+leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(data = rio,
+              label = labels,
+              fillColor = ~pal(pct_n_branca),
+              fillOpacity = 1,
+              color = "black", 
+              weight = 1,
+              labelOptions = labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"),
+    textsize = "15px",
+    direction = "auto"))
+```
+
+# Outros tipos de dados com o OSMDATA
+
+Um pacote interessante que pode ser muito útil para algumas pesquisas é o `osmdata`. Ele funciona como uma interface de download de dados do *OpenStreetMap*, que possui centenas de informações diferentes para cada mapa. Por ele, podemos baixar, por exemplo, dados sobre linhas férreas, tipos de estrada, pedágios, prédios públicos, escolas, dentre outros. A interface do `osmdata` não é muito simples, mas funciona da seguinte maneira:
+
+```{r}
+moscou_metro <- opq("Moscow",  timeout = 240, memsize = 1073741824) %>%
+  add_osm_feature(key = "railway", value = "subway") %>%
+  osmdata_sf()
+
+moscou_metrostat <- opq("Moscow",  timeout = 240, memsize = 1073741824) %>%
+  add_osm_feature(key = "station", value = "subway") %>%
+  osmdata_sf()
+
+moscou_city <- opq("Moscow", timeout = 240, memsize = 1073741824) %>%
+  add_osm_feature(key = "name:pt", value = "Moscou") %>%
+  osmdata_sf()
+
+moscou_trem <- opq("Moscow", timeout = 240, memsize = 1073741824) %>%
+  add_osm_feature(key = "railway", value = "rail") %>%
+  osmdata_sf()
+```
+
+A funçào `opq()` efetua uma busca no mapa. No primeiro argumento, chamado `bbox`, podemos colocar 4 valores de coordenadas (xmin, ymin, xmax, ymax, nessa ordem), ou o nome de uma cidade/local. O argumento `timeout` é só para aumentar o tempo de download, pra quando estivermos baixando dados muito pesados, não haja risco da conexão ser cancelada, e `memsize`
+funciona da mesma maneira. 
+
+Já a função `add_osm_feature` baixa, dentre os pares de chave/valor, as "camadas" do gráfico. No caso, eu baixei dentro da categoria "railway" os valores de "subway" e de "rail". Baixei também as estações de metrô, e para garantir que eu estivesse baixando o Moscou mesmo, botei de forma explícita que a cidade se chama Moscou, pegando sua divisão administrativa. 
+Esses objetos são do tipo `osm_data`, e não `sf`, como precisamos. Isso se deve ao fato deles serem muito completos: eles possuem linhas, pontos, polígonos e multipolígonos, além de outras variáveis, como pontes, ruas, estradas, etc. Precisamos, então, limpar esses objetos. Antes disso, pegaremos as coordenadas de GPS para podermos centralizar os mapas posteriormente:
+
+```{r}
+gps_coords <- moscou_city$bbox %>% str_split(",") %>% # Pegar as localizações 
+  unlist() %>% # tirar de lista
+  as.numeric() # transformar em número
+
+lng_coord <- (gps_coords[2] + gps_coords[4])/2 # Média das longitudes
+lat_coord <- (gps_coords[1] + gps_coords[3])/2 # Média das latitudes
+
+# Para linhas de trem e metro, pegamos as variáveis osm_lines
+moscou_metro <- moscou_metro$osm_lines %>% 
+  select(name) %>% 
+  mutate(name = fct_drop(name),
+         name = fct_explicit_na(name)) %>% 
+  group_by(name) %>% 
+  summarise()
+
+moscou_trem <- moscou_trem$osm_lines %>% 
+  select(name) %>% 
+  mutate(name = fct_drop(name),
+         name = fct_explicit_na(name)) %>% 
+  group_by(name) %>% 
+  summarise()
+
+# Para estações, só precisamos dos pontos
+moscou_metrostat <- moscou_metrostat$osm_points %>% 
+  select(name) %>% 
+  mutate(name = fct_drop(name),
+         name = fct_explicit_na(name))
+
+# Para a divisão adiministrativa, são os multipolígonos
+moscou_city <- moscou_city$osm_multipolygons %>% 
+  select(name) %>%
+  mutate(name = fct_drop(name),
+         name = fct_explicit_na(name)) %>%
+  group_by(name) %>%
+  summarise()
+```
+
+Agora podemos observar como esses gráficos estão no `ggplot` antes de irmos para o `leaflet`:
+
+```{r}
+ggplot()+
+  geom_sf(data = moscou_city, fill = "ivory")+
+  geom_sf(data = moscou_trem, color = "blue")+
+  geom_sf(data = moscou_metro, color =  "red")+
+  geom_sf(data = moscou_metrostat, color = "red")+
+  theme_minimal()
+```
+
+Voltando ao `leaflet`, podemos já transpor esses dados:
+
+```{r}
+leaflet() %>% 
+  addTiles() %>% 
+  addProviderTiles(providers$Stamen.TonerBackground) %>% 
+  addPolygons(data = moscou_city,
+              opacity = 0.5, color = "black",
+              fillOpacity = 0.08, weight = 1) %>% 
+  addPolylines(data = moscou_metro, # banco
+               label = ~name, # nome das linhas
+               color = "lightseagreen", # cor da linha
+               opacity = 2, weight = 4, # opacidade e grossura da linha
+               group = "Linhas de Metrô",  # nome do grupo
+               highlight = highlightOptions(color = "red")) %>% # cor de highlight
+  addPolylines(data = moscou_trem,
+               label = ~name,
+               color = "coral",
+               opacity =  2, weight  = 3,
+               group = "Linhas de Trem",
+               highlight = highlightOptions(color = "red")) %>%
+  addCircleMarkers(data = moscou_metrostat,
+                   label = ~name,
+                   radius = 0.2,
+                   opacity = 1,
+                   color = "midnightblue",
+                   group = "Estações de Metrô") %>% 
+  addProviderTiles(providers$Esri.WorldStreetMap, group = "ESRI WorldStreetMap") %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "ESRI WorldImagery") %>% 
+  addProviderTiles(providers$CartoDB.Positron, group = "CartoDB Positron") %>% 
+  addProviderTiles(providers$MtbMap, group = "MtbMap") %>% 
+  addLayersControl(baseGroups = c("TonerBackground (Default)", 
+                                  "ESRI WorldStreetMap", 
+                                  "ESRI WorldImagery",
+                                  "CartoDB Positron",
+                                  "MtbMap"),
+                   overlayGroups = c("Linhas de Metrô", "Estações de Metrô", "Linhas de Trem"),
+                   options = layersControlOptions(collapsed = F),
+                   position = "bottomright") %>% 
+  addSearchOSM() %>%
+  addControlGPS() %>% 
+  setView(zoom = 12,
+          lat = lat_coord+0.02,
+          lng = lng_coord)
+```
+
+# Mapas 3D animados
+
+Com o R, também é possível criar mapas 3D que são animados a partir do pacote `rayshader`. 
+Esse (e outros exemplos) podem ser encontrados [aqui](https://wcmbishop.github.io/rayshader-demo/).
+As funções incluídas em `functions_rayshader_gif.R` são de autoria do criador do site referido. 
+ 
+```{r eval=FALSE, include=TRUE}
+source("~/Documents/Datasets/Minicurso_Mapas/functions_rayshader_gif.R")
+n_frames <- 180
+waterdepths <- transition_values(from = 0, to = min(montereybay), steps = n_frames) 
+thetas <- transition_values(from = -45, to = -135, steps = n_frames)
+# generate gif
+zscale <- 50
+montereybay %>% 
+  sphere_shade(texture = "imhof1", zscale = zscale) %>%
+  add_shadow(ambient_shade(montereybay, zscale = zscale), 0.5) %>%
+  add_shadow(ray_shade(montereybay, zscale = zscale, lambert = TRUE), 0.5) %>%
+  save_3d_gif(montereybay, file = "montereybay.gif", duration = 6,
+              solid = TRUE, shadow = TRUE, water = TRUE, zscale = zscale,
+              watercolor = "imhof3", wateralpha = 0.8, 
+              waterlinecolor = "#ffffff", waterlinealpha = 0.5,
+              waterdepth = waterdepths/zscale, 
+              theta = thetas, phi = 45)
+```
+
+![](montereybay.gif)
+
+# Exercícios
+
+Agora, peço que façam algum mapa para que possamos botar a mão na massa e resolver possíveis problemas que podem vir a aparecer no dia a dia. Algumas sugestões de mapas que podem ser feitos com os bancos aqui cedidos:
+
+- Porcentagem de votos que determinado candidato teve nas eleições presidenciais de 2018
+- Porcentagem de população não-branca em determinado estado ou região do país
+- Nº de habitantes em cada município/estado
+- Terras indígenas separadas por *status* (declaradas, encaminhadas, regularizada, delimitada, etc)
+- Expectativa de vida, população ou PIB per capita (banco `world`)
+
+# Leitura recomendada
+
+- [Geocomputation with R](https://geocompr.robinlovelace.net/) 
+- [Cores do R](http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf)
+- [Rayshader Demo](https://wcmbishop.github.io/rayshader-demo/)
+- [ColorBrewer](https://colorbrewer2.org/#type=qualitative&scheme=Paired&n=6)
+
+
