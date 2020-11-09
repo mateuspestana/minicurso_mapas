@@ -31,7 +31,8 @@ pacman::p_load(
   rayshader,
   gifski,
   spData,
-  janitor
+  janitor,
+  hrbrthemes
 )
 
 # O Rio no mundo
