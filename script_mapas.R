@@ -7,6 +7,16 @@
 # Eu, particularmente, gosto de utilizar o pacote "pacman" para carregar/baixar
 # vários pacotes de uma vez. Todavia, para quem não tem muita prática, pode se ater
 # à forma original (usando o library() )
+# É preciso instalar antes o RTOOLS (Windows) e: :
+install.packages("devtools")
+install.packages("pacman")
+devtools::install_github("italocegatta/brmap")
+devtools::install_github("tylermorganwall/rayshader")
+
+# OBS: Se o brmap der erro, não podendo ser instalado, rode:
+load("brmap.RData")
+
+
 pacman::p_load(
   sf,
   raster,

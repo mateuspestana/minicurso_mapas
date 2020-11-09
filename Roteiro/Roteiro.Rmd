@@ -46,6 +46,19 @@ pacman::p_load(
 )
 ```
 
+Antes de rodá-los, é preciso instalar os pacotes: `pacman` e `devtools` e rodar os seguintes comandos:
+
+>IMPORTANTE: usuários Windows precisam ter o RTOOLS instalado - [BAIXE AQUI ](https://cran.r-project.org/bin/windows/Rtools/)
+
+```{r, eval=FALSE, include=TRUE}
+install.packages("devtools")
+install.packages("pacman")
+devtools::install_github("italocegatta/brmap")
+devtools::install_github("tylermorganwall/rayshader")
+
+# OBS: Se o brmap der erro, não podendo ser instalado, rode:
+load("brmap.RData")
+```
 
 # Tipos de dados em mapas
 
