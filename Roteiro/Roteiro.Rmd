@@ -541,5 +541,5 @@ Agora, peço que façam algum mapa para que possamos botar a mão na massa e res
 - [Cores do R](http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf)
 - [Rayshader Demo](https://wcmbishop.github.io/rayshader-demo/)
 - [ColorBrewer](https://colorbrewer2.org/#type=qualitative&scheme=Paired&n=6)
-
+- [OSM Map Features](https://wiki.openstreetmap.org/wiki/Map_Features)
 
