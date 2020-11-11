@@ -61,9 +61,9 @@ raster <-  raster("Raster/MDE_26844no_v2.tif")
 plot(raster)
 
 # Mapa dos municípios do RJ
-brmap::brmap_estado
+brmap_estado
 
-ggplot(brmap::brmap_municipio_simples %>%
+ggplot(brmap_municipio_simples %>%
          filter(estado_cod == 33)) +
   geom_sf() +
   hrbrthemes::theme_ipsum_tw()
