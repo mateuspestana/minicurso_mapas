@@ -7,15 +7,15 @@
 # Eu, particularmente, gosto de utilizar o pacote "pacman" para carregar/baixar
 # vários pacotes de uma vez. Todavia, para quem não tem muita prática, pode se ater
 # à forma original (usando o library() )
-# É preciso instalar antes o RTOOLS (Windows) e: :
+# É preciso instalar antes o RTOOLS (Windows) e:
 install.packages("devtools")
 install.packages("pacman")
 devtools::install_github("italocegatta/brmap")
 devtools::install_github("tylermorganwall/rayshader")
 
+
 # OBS: Se o brmap der erro, não podendo ser instalado, rode:
 load("brmap.RData")
-
 
 pacman::p_load(
   sf,
@@ -32,7 +32,7 @@ pacman::p_load(
   gifski,
   spData,
   janitor,
-  hrbrthemes
+  hrbrthemes, rgdal
 )
 
 # O Rio no mundo
@@ -63,10 +63,14 @@ plot(raster)
 # Mapa dos municípios do RJ
 brmap_estado
 
+brmap_municipio_simples %>%
+  filter(estado_cod == 33)
+
 ggplot(brmap_municipio_simples %>%
          filter(estado_cod == 33)) +
   geom_sf() +
-  hrbrthemes::theme_ipsum_tw()
+  hrbrthemes::theme_ipsum_tw()+
+  labs(title = "Rio de Janeiro")
 
 # Raster
 raster
@@ -83,24 +87,36 @@ brmap_brasil_simples %>%
   ggplot()+
   geom_sf()
 
+ggplot(brmap_brasil_simples)+
+  geom_sf()
+
 brmap_estado_simples %>%
   ggplot()+
   geom_sf()
 
 brmap_municipio_simples %>%
   select(-municipio_nome) %>%
-  filter(estado_cod == 33) %>%
+  filter(estado_cod == 35) %>%
   ggplot()+
   geom_sf()
 
 # Geobr
+library(geobr)
+
 list_geobr()
 
 # Baixando dados de terras indígenas
-terra_indigena <-  read_indigenous_land(showProgress = F)
+terra_indigena <- read_indigenous_land(showProgress = F)
+
+terra_indigena
+
 terra_indigena %>%
   ggplot() +
   geom_sf()
+
+ggplot()+
+  geom_sf(data = brmap_brasil_simples, fill = "yellow")+
+  geom_sf(data = terra_indigena, fill = "brown")
 
 # Região Sudeste - Municípios
 brmap_municipio_simples %>%
@@ -120,7 +136,10 @@ brmap_municipio_simples %>%
   ggplot(aes(fill = as.factor(estado_cod)))+
   geom_sf(color = "white", size = 0.05) +
   hrbrthemes::theme_ipsum_tw() +
-  scale_fill_manual(values = c("31" = "deeppink", "32" = "forestgreen", "33" = "dodgerblue4", "35" = "darkorange"))+
+  scale_fill_manual(values = c("31" = "deeppink",
+                               "32" = "forestgreen",
+                               "33" = "dodgerblue4",
+                               "35" = "darkorange"))+
   labs(title = "Região Sudeste",
        subtitle = "Divisão dos municípios",
        caption = "Matheus c. Pestana",
@@ -156,7 +175,7 @@ brmap_municipio_simples %>%
 
 # Dados Eleitorais
 segundo_turno_br <- import("votacao_candidato_munzona_2018_BR.csv",
-                           encoding = "Latin-1") %>%
+                           encoding = "Latin-1")
   filter(NR_TURNO == 2) %>%
   group_by(SG_UF, NM_URNA_CANDIDATO) %>%
   summarise(votos = sum(QT_VOTOS_NOMINAIS)) %>%
@@ -231,6 +250,7 @@ rio %>%
 ggplotly(mapa_rio_nbranco)
 
 # Leaflet
+
 rio <- rio %>%
   mutate(pct = paste(format(pct_n_branca*100, digits = 3), "%"))
 
@@ -273,7 +293,8 @@ moscou_trem <- opq("Moscow", timeout = 240, memsize = 1073741824) %>%
   add_osm_feature(key = "railway", value = "rail") %>%
   osmdata_sf()
 
-gps_coords <- moscou_city$bbox %>% str_split(",") %>% # Pegar as localizações
+gps_coords <- moscou_city$bbox %>%
+  str_split(",") %>% # Pegar as localizações
   unlist() %>% # tirar de lista
   as.numeric() # transformar em número
 
