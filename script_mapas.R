@@ -32,7 +32,8 @@ pacman::p_load(
   gifski,
   spData,
   janitor,
-  hrbrthemes, rgdal
+  hrbrthemes,
+  rgdal
 )
 
 # O Rio no mundo
@@ -103,7 +104,13 @@ brmap_municipio_simples %>%
 # Geobr
 library(geobr)
 
-list_geobr()
+list_geobr() %>% View()
+
+rio_map <- read_municipality(code_muni = "RJ")
+
+rio_map %>%
+  ggplot()+
+  geom_sf()
 
 # Baixando dados de terras indígenas
 terra_indigena <- read_indigenous_land(showProgress = F)
