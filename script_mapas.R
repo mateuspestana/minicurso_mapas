@@ -150,13 +150,14 @@ brmap_municipio_simples %>%
   labs(title = "Região Sudeste",
        subtitle = "Divisão dos municípios",
        caption = "Matheus c. Pestana",
-       fill = "Código do Estado")
+       fill = "Código do Estado")+
+  theme(legend.position = "bottom")
 
 # Outras variáveis - criando
-brmap_municipio_simples %>%
-  filter(estado_cod == 33) %>%
-  mutate(visita = case_when(municipio_nome == "Rio de Janeiro" ~ "Onde moro",
-                            municipio_nome %in% c("Angra dos Reis",
+rio_map %>%
+  filter(code_state == 33) %>%
+  mutate(visita = case_when(name_muni == "Rio De Janeiro" ~ "Onde moro",
+                            name_muni %in% c("Angra dos Reis",
                                                   "Belford Roxo",
                                                   "Cabo Frio",
                                                   "Cachoeiras de Macacu",
@@ -182,7 +183,7 @@ brmap_municipio_simples %>%
 
 # Dados Eleitorais
 segundo_turno_br <- import("votacao_candidato_munzona_2018_BR.csv",
-                           encoding = "Latin-1")
+                           encoding = "Latin-1") %>%
   filter(NR_TURNO == 2) %>%
   group_by(SG_UF, NM_URNA_CANDIDATO) %>%
   summarise(votos = sum(QT_VOTOS_NOMINAIS)) %>%
@@ -210,9 +211,7 @@ mapa_2t %>%
        fill = "")
 
 # Governadores - Partidos
-governadores <- import("governadores.csv")
-
-governadores <- governadores %>%
+governadores <- import("governadores.csv") %>%
   rename("estado_sigla" = SIGLA_UF)
 
 mapa_governadores <- left_join(brmap_estado_simples, governadores)

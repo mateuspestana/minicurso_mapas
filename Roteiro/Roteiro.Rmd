@@ -42,7 +42,8 @@ pacman::p_load(
   leaflet.extras,
   rayshader,
   gifski,
-  spData
+  spData,
+  rgdal
 )
 ```
 
